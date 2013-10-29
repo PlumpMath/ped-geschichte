@@ -1,5 +1,9 @@
 # ped-geschichte
 
+
+Playground for 'geschichte' repo functions with pedestal. Use ui-data-renderer for now.
+Has an easy to debug memory store for the underlying key-value store concept.
+
 Start working on this application by writing its behavior in the file
 `app/src/ped_geschichte/behavior.clj`
 

@@ -18,7 +18,6 @@
                                      :result (if-let [res (.-result req)]
                                                (read-string (.-value res)))})))))
 
-  (-del [this key cb])
   (-put [this key value cb]
     (let [tx (.transaction this (clj->js ["rhodium-obj-store"]) "readwrite")
           obj-store (.objectStore tx "rhodium-obj-store")]
@@ -29,8 +28,7 @@
       (set! (.-oncomplete tx) #(cb {:requested key
                                     :status :ok}))
       (.delete obj-store key)
-      (.add obj-store (clj->js {:key key :value (pr-str value)}))))
-  (-transact [this trans cb]))
+      (.add obj-store (clj->js {:key key :value (pr-str value)})))))
 
 
 (def dummy-data

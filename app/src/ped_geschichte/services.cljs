@@ -34,7 +34,11 @@
 
 
 (def mem-store (MemoryStore. (atom {:users #{"test@pilot"}
-                                    "test@pilot" {:repositories #{"ped-geschichte"}}})))
+                                    "test@pilot" {:repositories #{"ped-geschichte"}}
+                                    "test@pilot/ped-geschichte" {:head 1756, 1756 #{1693}, 1693 #{1662}, 1662 #{}}
+                                    1662 "42"
+                                    1693 "52"
+                                    1756 "73"})))
 
 
 (defn services-fn [{:keys [transact]} queue]
@@ -45,7 +49,6 @@
          (store/-put mem-store k v
                      (fn [e]
                        (.log js/console "put: " k v)
-
                        (put-fn ps)))
          (do
            (.log js/console "mem-store: " (str @(:state mem-store)))
