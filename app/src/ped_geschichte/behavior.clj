@@ -30,6 +30,7 @@
         :set-value [{msg/topic [:staged] (msg/param :value) {}}]
         :set-repo [{msg/topic [:repo] (msg/param :value) {}}]
         :fork [{msg/topic [:fork] (msg/param :value) {}}]
+        :merge [{msg/topic [:merge] (msg/param :value) {}}]
         :commit [{msg/topic [:commit]}]}}}}}])
 
 
@@ -77,6 +78,25 @@
                      :puts [[new-repo meta (fn [] {msg/type :set-repo msg/topic [:repo] :value new-repo})]]})))
 
 
+(defn load-merge-meta [merge-repo]
+  (when merge-repo
+    (transact-to-kv {:actions [:gets]
+                     :gets [[merge-repo
+                             (fn [v] {msg/type :set-merge-meta msg/topic [:merge-meta] :value v})]]})))
+
+
+(defn load-merge-head [merge-meta]
+  (when merge-meta
+    (transact-to-kv {:actions [:gets]
+                     :gets [[(:head merge-meta)
+                             (fn [v] {msg/type :set-merge-value msg/topic [:merge-value] :value v})] ()]})))
+
+
+(defn resolve [{:keys [repo meta merge-meta staged to-merge] :as res}]
+  (when res
+    (commit-to-kv (repo/merge repo meta merge-meta (str staged to-merge)))))
+
+
 (def example-app
   ;; There are currently 2 versions (formats) for dataflow
   ;; description: the original version (version 1) and the current
@@ -88,27 +108,49 @@
                [:set-value [:staged] set-value-transform]
                [:commit [:commit] p/date] ; UUID?
                [:set-meta [:meta] set-value-transform]
-               [:fork [:fork] set-value-transform]]
-   :derive #{[{[:repo] :repo
+               [:fork [:fork] set-value-transform]
+               [:merge [:merge] set-value-transform]
+               [:set-merge-meta [:merge-meta] set-value-transform]
+               [:set-merge-value [:merge-value] set-value-transform]]
+   :derive #{;; determine committing
+             [{[:repo] :repo
                [:commit] :commit
                [:staged] :value
                [:meta] :meta} [:trans-comm] commit :map]
+             ;; determine forking
              [{[:meta] :meta
                [:fork] :new-repo
-               [:repo] :old-repo} [:trans-fork] #(if (or (not (:new-repo %1)) (= (:new-repo %1)
-                                                                                 (:old-repo %2))) %2 %1) :map]}
+               [:repo] :old-repo} [:trans-fork] #(if (or (not (:new-repo %1))
+                                                         (= (:new-repo %1)
+                                                            (:old-repo %2))) %2 %1) :map]
+             ;; determine merging
+             [{[:repo] :repo
+               [:meta] :meta
+               [:merge-value] :to-merge
+               [:merge-meta] :merge-meta
+               [:staged] :staged} [:trans-merge] #(if (not= (:to-merge %1) ; TODO check
+                                                            (:to-merge %2)) %2 %1) :map]}
+
+
    :effect #{[#{[:trans-comm]} commit-to-kv :single-val]
              [#{[:trans-fork]} fork-to-kv :single-val]
+             [#{[:trans-merge]} resolve :single-val]
              [#{[:repo]} load-meta-from-repo :single-val]
-             [#{[:meta]} load-value-from-meta :single-val]}
+             [#{[:meta]} load-value-from-meta :single-val]
+             [#{[:merge]} load-merge-meta :single-val]
+             [#{[:merge-meta]} load-merge-head :single-val]}
    :emit [{:init init-main}
           [#{[:staged]
              [:repo]
+             [:meta]
              [:commit]
              [:fork]
+             [:merge]
+             [:merge-meta]
+             [:merge-value]
              [:trans-comm]
              [:trans-fork]
-             [:meta]} (app/default-emitter [:geschichte])]]})
+             [:trans-merge]} (app/default-emitter [:geschichte])]]})
 
 
 ;; Once this behavior works, run the Data UI and record

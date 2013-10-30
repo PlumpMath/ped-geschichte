@@ -45,7 +45,7 @@
 
 
 (defn services-fn [{{:keys [actions] :as transact} :transact} queue]
-  (.log js/console "mem-store: " (str @(:state mem-store)) "transact: " transact)
+  (.log js/console "mem-store: " (str @(:state mem-store)) "transact: " (str transact))
   ((fn actions-fn [[a & as]]
      (cond (= a :puts)
            (let [{:keys [puts]} transact]

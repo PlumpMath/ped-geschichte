@@ -44,7 +44,8 @@
     ;; Start the application
     (app/begin app)
     ;; Send a message to the application so that it does something.
-    #_(restore (:input app))
+    (p/put-message (:input app) {msg/type :set-repo msg/topic [:repo] :value "u1/r"})
+
     ;; Returning the app and app-model from the main function allows
     ;; the tooling to add support for useful features like logging
     ;; and recording.

@@ -14,7 +14,7 @@
      :value new
      :repo repo}))
 
-(defn merge-branches [repo-id meta-source meta-target val]
+(defn merge [repo-id meta-source meta-target val]
   "Merge target branch into source branch with value val."
   (let [lcas (lowest-common-ancestors meta-source meta-target)
         new-meta (merge-ancestors meta-source (:cut lcas) (:backways-b lcas))]
