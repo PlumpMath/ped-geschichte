@@ -33,28 +33,41 @@
   (-put [this key val cb] (cb (swap! state assoc key val))))
 
 
-(def mem-store (MemoryStore. (atom {:users #{"test@pilot"}
-                                    "test@pilot" {:repositories #{"ped-geschichte"}}
-                                    "test@pilot/ped-geschichte" {:head 1756, 1756 #{1693}, 1693 #{1662}, 1662 #{}}
+(def mem-store (MemoryStore. (atom {:users #{"u1"}
+                                    "u1" {:repositories #{"r"}}
+                                    "u1/r" {:head 1756,
+                                            1756 #{1693},
+                                            1693 #{1662},
+                                            1662 #{}}
                                     1662 "42"
                                     1693 "52"
                                     1756 "73"})))
 
 
-(defn services-fn [{:keys [transact]} queue]
-  (let [{:keys [gets puts]} transact
-        [_ meta] (last puts)]
-    ((fn put-fn [[[k v] & ps]]
-       (if k
-         (store/-put mem-store k v
-                     (fn [e]
-                       (.log js/console "put: " k v)
-                       (put-fn ps)))
-         (do
-           (.log js/console "mem-store: " (str @(:state mem-store)))
-           (p/put-message queue {msg/topic [:meta]
-                                 msg/type :set-meta
-                                 :value meta})))) puts)))
+(defn services-fn [{{:keys [actions] :as transact} :transact} queue]
+  (.log js/console "mem-store: " (str @(:state mem-store)) "transact: " transact)
+  ((fn actions-fn [[a & as]]
+     (cond (= a :puts)
+           (let [{:keys [puts]} transact]
+             ((fn put-fn [[[k v mf] & ps]]
+                (when k
+                  (store/-put mem-store k v
+                              (fn [e]
+                                (.log js/console "put: " k v)
+                                (when mf (p/put-message queue (mf)))
+                                (put-fn ps))))) puts)
+             (actions-fn as))
+
+           (= a :gets)
+           (let [{:keys [gets]} transact]
+             ((fn get-fn [[[k mf] & gs]]
+                (when k
+                  (store/-get mem-store k
+                              (fn [{:keys [result]}]
+                                (.log js/console "get: " k result)
+                                (p/put-message queue (mf result))
+                                (get-fn gs))))) gets)
+             (actions-fn as)))) actions))
 
 
 ;; During development, it is helpful to implement services which

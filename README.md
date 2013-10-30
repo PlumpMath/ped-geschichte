@@ -1,8 +1,12 @@
 # ped-geschichte
 
 
-Playground for 'geschichte' repo functions with pedestal. Use ui-data-renderer for now.
+Playground for `geschichte` repo functions with pedestal. Use ui-data-renderer for now.
 Has an easy to debug memory store for the underlying key-value store concept.
+
+Example:
+- set repo to "u1/r" to checkout a demo repository
+- commit, fork, set-repo (checkout) at wish
 
 Start working on this application by writing its behavior in the file
 `app/src/ped_geschichte/behavior.clj`

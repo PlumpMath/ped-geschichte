@@ -26,8 +26,10 @@
      :form
      {:select
       {:transforms
-       {:set-value [{msg/topic [:staged] (msg/param :value) {}}]
+       {:set-meta [{msg/topic [:meta] (msg/param :value) {}}]
+        :set-value [{msg/topic [:staged] (msg/param :value) {}}]
         :set-repo [{msg/topic [:repo] (msg/param :value) {}}]
+        :fork [{msg/topic [:fork] (msg/param :value) {}}]
         :commit [{msg/topic [:commit]}]}}}}}])
 
 
@@ -46,10 +48,34 @@
 (defn transact-to-kv [trans]
   [{msg/topic [:transact-to-kv] :transact trans}])
 
+
 (defn commit-to-kv [{:keys [meta value repo] :as trans}]
   (when (and meta value repo)
-    (transact-to-kv (assoc trans :puts [[(:head meta) value]
-                                        [repo meta]]))))
+    (transact-to-kv (assoc trans
+                      :actions [:puts]
+                      :puts [[(:head meta) value]
+                             [repo meta (fn [] {msg/type :set-meta msg/topic [:meta] :value meta})]]))))
+
+
+(defn load-meta-from-repo [new-repo]
+  (when new-repo
+    (transact-to-kv {:actions [:gets]
+                     :gets [[new-repo
+                             (fn [v] {msg/type :set-meta msg/topic [:meta] :value v})]]})))
+
+
+(defn load-value-from-meta [{:keys [head] :as new-meta}]
+  (when new-meta
+    (transact-to-kv {:actions [:gets]
+                     :gets [[head
+                             (fn [v] {msg/type :set-value msg/topic [:staged] :value v})]]})))
+
+
+(defn fork-to-kv [{:keys [new-repo old-repo meta]}]
+  (when (and old-repo new-repo)
+    (transact-to-kv {:actions [:puts]
+                     :puts [[new-repo meta (fn [] {msg/type :set-repo msg/topic [:repo] :value new-repo})]]})))
+
 
 (def example-app
   ;; There are currently 2 versions (formats) for dataflow
@@ -61,17 +87,27 @@
    :transform [[:set-repo [:repo] set-value-transform]
                [:set-value [:staged] set-value-transform]
                [:commit [:commit] p/date] ; UUID?
-               [:set-meta [:meta] set-value-transform]]
+               [:set-meta [:meta] set-value-transform]
+               [:fork [:fork] set-value-transform]]
    :derive #{[{[:repo] :repo
                [:commit] :commit
                [:staged] :value
-               [:meta] :meta} [:trans-comm] commit :map]}
-   :effect #{[#{[:trans-comm]} commit-to-kv :single-val]}
+               [:meta] :meta} [:trans-comm] commit :map]
+             [{[:meta] :meta
+               [:fork] :new-repo
+               [:repo] :old-repo} [:trans-fork] #(if (or (not (:new-repo %1)) (= (:new-repo %1)
+                                                                                 (:old-repo %2))) %2 %1) :map]}
+   :effect #{[#{[:trans-comm]} commit-to-kv :single-val]
+             [#{[:trans-fork]} fork-to-kv :single-val]
+             [#{[:repo]} load-meta-from-repo :single-val]
+             [#{[:meta]} load-value-from-meta :single-val]}
    :emit [{:init init-main}
           [#{[:staged]
              [:repo]
              [:commit]
+             [:fork]
              [:trans-comm]
+             [:trans-fork]
              [:meta]} (app/default-emitter [:geschichte])]]})
 
 

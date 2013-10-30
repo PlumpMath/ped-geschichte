@@ -11,15 +11,7 @@
 
 ;; In this namespace, the application is built and started.
 
-(defn restore [input]
-  (p/put-message input {msg/type :set-repo msg/topic [:repo] :value "test@pilot/ped-geschichte"})
-  (store/-get mem-store "test@pilot/ped-geschichte"
-              (fn [{:keys [result]}]
-                (p/put-message input {msg/type :set-meta msg/topic [:meta] :value result})
-                (store/-get mem-store (:head result)
-                            (fn [{:keys [result]}]
-                              (p/put-message input {msg/type :set-value msg/topic [:staged] :value result})
-                              (.log js/console "restored with value: " result))))))
+
 
 (defn create-app [render-config]
   (let [;; Build the application described in the map
@@ -52,7 +44,7 @@
     ;; Start the application
     (app/begin app)
     ;; Send a message to the application so that it does something.
-    (restore (:input app))
+    #_(restore (:input app))
     ;; Returning the app and app-model from the main function allows
     ;; the tooling to add support for useful features like logging
     ;; and recording.
