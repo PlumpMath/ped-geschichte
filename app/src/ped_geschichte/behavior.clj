@@ -26,8 +26,7 @@
      :form
      {:select
       {:transforms
-       {:set-meta [{msg/topic [:meta] (msg/param :value) {}}]
-        :set-value [{msg/topic [:staged] (msg/param :value) {}}]
+       {:set-value [{msg/topic [:staged] (msg/param :value) {}}]
         :set-repo [{msg/topic [:repo] (msg/param :value) {}}]
         :fork [{msg/topic [:fork] (msg/param :value) {}}]
         :merge [{msg/topic [:merge] (msg/param :value) {}}]
