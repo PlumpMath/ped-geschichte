@@ -30,11 +30,12 @@
         :set-repo [{msg/topic [:repo] (msg/param :value) {}}]
         :fork [{msg/topic [:fork] (msg/param :value) {}}]
         :merge [{msg/topic [:merge] (msg/param :value) {}}]
-        :commit [{msg/topic [:commit]}]}}}}}])
+        :commit [{msg/topic [:commit]}]
+        :reverse [{msg/topic [:reverse]}]}}}}}])
 
 
 (defn commit [old {:keys [repo value commit meta]}]
-  (if-not (or (= (:value old) value)
+  (if-not (or (= (:value meta) meta)
               (= (:ts old) commit)
               (nil? repo))
     (assoc (repo/commit repo
@@ -54,41 +55,63 @@
     (transact-to-kv (assoc trans
                       :actions [:puts]
                       :puts [[(:head meta) value]
-                             [repo meta (fn [] {msg/type :set-meta msg/topic [:meta] :value meta})]]))))
+                             [repo meta (fn [] [{msg/type :set-meta
+                                                msg/topic [:meta]
+                                                :value meta}])]]))))
 
 
 (defn load-meta-from-repo [new-repo]
   (when new-repo
     (transact-to-kv {:actions [:gets]
                      :gets [[new-repo
-                             (fn [v] {msg/type :set-meta msg/topic [:meta] :value v})]]})))
+                             (fn [v] [{msg/type :set-meta
+                                      msg/topic [:meta]
+                                      :value v}])]]})))
 
 
 (defn load-value-from-meta [{:keys [head] :as new-meta}]
   (when new-meta
     (transact-to-kv {:actions [:gets]
                      :gets [[head
-                             (fn [v] {msg/type :set-value msg/topic [:staged] :value v})]]})))
+                             (fn [v] [{msg/type :set-value
+                                      msg/topic [:staged]
+                                      :value v}])]]})))
 
 
 (defn fork-to-kv [{:keys [new-repo old-repo meta]}]
   (when (and old-repo new-repo)
     (transact-to-kv {:actions [:puts]
-                     :puts [[new-repo meta (fn [] {msg/type :set-repo msg/topic [:repo] :value new-repo})]]})))
+                     :puts [[new-repo meta (fn [] [{msg/type :set-repo
+                                                   msg/topic [:repo]
+                                                   :value new-repo}])]]})))
 
 
 (defn load-merge-meta [merge-repo]
   (when merge-repo
     (transact-to-kv {:actions [:gets]
                      :gets [[merge-repo
-                             (fn [v] {msg/type :set-merge-meta msg/topic [:merge-meta] :value v})]]})))
+                             (fn [v] [{msg/type :set-merge-meta
+                                      msg/topic [:merge-meta]
+                                      :value v}])]]})))
 
 
 (defn load-merge-head [merge-meta]
   (when merge-meta
     (transact-to-kv {:actions [:gets]
                      :gets [[(:head merge-meta)
-                             (fn [v] {msg/type :set-merge-value msg/topic [:merge-value] :value v})] ()]})))
+                             (fn [v] [{msg/type :set-merge-value
+                                      msg/topic [:merge-value]
+                                      :value v}])]]})))
+
+(defn load-reverse-value [{:keys [reverse meta]}]
+  (when meta
+    (let [new-head (-> meta :head meta first)]
+      (transact-to-kv {:actions [:gets]
+                       :gets [[new-head
+                               (fn [v] [{msg/type :set-value msg/topic [:staged] :value v}
+                                       {msg/type :set-meta
+                                        msg/topic [:meta]
+                                        :value (assoc meta :head (or new-head (:head meta)))}])]]}))))
 
 
 (defn resolve [{:keys [repo meta merge-meta staged to-merge] :as res}]
@@ -105,24 +128,33 @@
   {:version 2
    :transform [[:set-repo [:repo] set-value-transform]
                [:set-value [:staged] set-value-transform]
-               [:commit [:commit] p/date] ; UUID?
                [:set-meta [:meta] set-value-transform]
+
+               [:commit [:commit] p/date] ; UUID?
+               [:reverse [:reverse] p/date]
+               [:set-reverse-value [:reverse-value] set-value-transform]
+
                [:fork [:fork] set-value-transform]
                [:merge [:merge] set-value-transform]
                [:set-merge-meta [:merge-meta] set-value-transform]
                [:set-merge-value [:merge-value] set-value-transform]]
-   :derive #{;; determine committing
+   :derive #{;; committing
              [{[:repo] :repo
                [:commit] :commit
                [:staged] :value
-               [:meta] :meta} [:trans-comm] commit :map]
-             ;; determine forking
+               [:meta] :meta} [:trans-commit] commit :map]
+
+             ;; reversing
+             [{[:meta] :meta
+               [:reverse] :reverse} [:trans-reverse] #(if-not (= (:reverse %1)
+                                                                 (:reverse %2)) %2 %1) :map]
+             ;; forking
              [{[:meta] :meta
                [:fork] :new-repo
                [:repo] :old-repo} [:trans-fork] #(if (or (not (:new-repo %1))
                                                          (= (:new-repo %1)
                                                             (:old-repo %2))) %2 %1) :map]
-             ;; determine merging
+             ;; merging
              [{[:repo] :repo
                [:meta] :meta
                [:merge-value] :to-merge
@@ -131,9 +163,10 @@
                                                             (:to-merge %2)) %2 %1) :map]}
 
 
-   :effect #{[#{[:trans-comm]} commit-to-kv :single-val]
+   :effect #{[#{[:trans-commit]} commit-to-kv :single-val]
              [#{[:trans-fork]} fork-to-kv :single-val]
              [#{[:trans-merge]} resolve :single-val]
+             [#{[:trans-reverse]} load-reverse-value :single-val]
              [#{[:repo]} load-meta-from-repo :single-val]
              [#{[:meta]} load-value-from-meta :single-val]
              [#{[:merge]} load-merge-meta :single-val]
@@ -143,11 +176,14 @@
              [:repo]
              [:meta]
              [:commit]
+             [:reverse]
+             [:reverse-value]
              [:fork]
              [:merge]
              [:merge-meta]
              [:merge-value]
-             [:trans-comm]
+             [:trans-commit]
+             [:trans-reverse]
              [:trans-fork]
              [:trans-merge]} (app/default-emitter [:geschichte])]]})
 

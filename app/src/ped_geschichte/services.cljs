@@ -54,7 +54,7 @@
                   (store/-put mem-store k v
                               (fn [e]
                                 (.log js/console "put: " k v)
-                                (when mf (p/put-message queue (mf)))
+                                (when mf (doseq [m (mf)] (p/put-message queue m)))
                                 (put-fn ps))))) puts)
              (actions-fn as))
 
@@ -65,7 +65,7 @@
                   (store/-get mem-store k
                               (fn [{:keys [result]}]
                                 (.log js/console "get: " k result)
-                                (p/put-message queue (mf result))
+                                (doseq [m (mf result)] (p/put-message queue m))
                                 (get-fn gs))))) gets)
              (actions-fn as)))) actions))
 
