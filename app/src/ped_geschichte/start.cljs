@@ -17,7 +17,7 @@
   (let [;; Build the application described in the map
         ;; 'behavior/example-app'. The application is a record which
         ;; implements the Receiver protocol.
-        app (app/build behavior/example-app)
+        app (app/build behavior/ped-geschichte-app)
         ;; Create the render function that will be used by this
         ;; application. A renderer function takes two arguments: the
         ;; application model deltas and the input queue.
@@ -44,7 +44,7 @@
     ;; Start the application
     (app/begin app)
     ;; Send a message to the application so that it does something.
-    (p/put-message (:input app) {msg/type :set-repo msg/topic [:repo] :value "u1/r"})
+    #_(p/put-message (:input app) {msg/type :set-repo msg/topic [:repo] :value "u1/r"})
 
     ;; Returning the app and app-model from the main function allows
     ;; the tooling to add support for useful features like logging

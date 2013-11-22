@@ -19,7 +19,7 @@
 ;; state
 
 (deftest test-app-state
-  (let [app (app/build example-app)]
+  (let [app (app/build ped-geschichte-app)]
     (app/begin app)
     (is (vector?
          (test/run-sync! app [{msg/type :set-value msg/topic [:greeting] :value "x"}])))
@@ -28,7 +28,7 @@
 ;; Use io.pedestal.app.query to query the current application model
 
 (deftest test-query-ui
-  (let [app (app/build example-app)
+  (let [app (app/build ped-geschichte-app)
         app-model (render/consume-app-model app (constantly nil))]
     (app/begin app)
     (is (test/run-sync! app [{msg/topic [:greeting] msg/type :set-value :value "x"}]))
@@ -38,4 +38,3 @@
                 [?n :t/value ?v]]
               @app-model)
            [["x"]]))))
-

@@ -33,7 +33,7 @@
   (-put [this key val cb] (cb (swap! state assoc key val))))
 
 
-(def mem-store (MemoryStore. (atom {:users #{"u1"}
+(def mem-store (MemoryStore. (atom {} #_{:users #{"u1"}
                                     "u1" {:repositories #{"r"}}
                                     "u1/r" {:head 1756,
                                             1756 #{1693},
@@ -49,23 +49,23 @@
   ((fn actions-fn [[a & as]]
      (cond (= a :puts)
            (let [{:keys [puts]} transact]
-             ((fn put-fn [[[k v mf] & ps]]
+             ((fn put-fn [[[k v msg-fn] & ps]]
                 (when k
                   (store/-put mem-store k v
                               (fn [e]
-                                (.log js/console "put: " k v)
-                                (when mf (doseq [m (mf)] (p/put-message queue m)))
+                                (.log js/console "put: " k (str v))
+                                (when msg-fn (doseq [m (msg-fn)] (p/put-message queue m)))
                                 (put-fn ps))))) puts)
              (actions-fn as))
 
            (= a :gets)
            (let [{:keys [gets]} transact]
-             ((fn get-fn [[[k mf] & gs]]
+             ((fn get-fn [[[k msg-fn] & gs]]
                 (when k
                   (store/-get mem-store k
                               (fn [{:keys [result]}]
-                                (.log js/console "get: " k result)
-                                (doseq [m (mf result)] (p/put-message queue m))
+                                (.log js/console "get: " k (str result))
+                                (doseq [m (msg-fn result)] (p/put-message queue m))
                                 (get-fn gs))))) gets)
              (actions-fn as)))) actions))
 

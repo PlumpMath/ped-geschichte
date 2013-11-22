@@ -2,6 +2,7 @@
   (:require [cljs.reader :refer [read-string]]
             [geschichte.store :as store]))
 
+;; not yet used here, supposed to be drop-in replacement for dumb memory store
 
 (extend-type js/IDBDatabase
   store/IKeyValueStore
@@ -31,28 +32,6 @@
       (.add obj-store (clj->js {:key key :value (pr-str value)})))))
 
 
-(def dummy-data
-  [{:id "Nachhaltiges Mannheim 2014"
-    :start (js/Date. 2013 0 1)
-    :end (js/Date. 2014 0 1)
-    :children ["Monatsplan"]}
-   {:id "Monatsplan"
-    :start (js/Date. 2013 9 1)
-    :end (js/Date. 2013 10 1)
-    :parent "Nachhaltiges Mannheim 2014"
-    :children ["Kellnerschicht" "Kloputzen"]}
-   {:id "Kellnerschicht"
-    :start (js/Date. 2013 9 10)
-    :end (js/Date. 2013 9 11)
-    :parent "Monatsplan"}
-   {:id "Kloputzen"
-    :start (js/Date. 2013 9 20)
-    :end (js/Date. 2013 9 21)
-    :parent "Monatsplan"}])
-
-(defn- put-data [db data]
-  (doseq [d data] (-put db (:id d) d #(.log js/console "put: " %))))
-
 (defn- upgrade-db! [version event]
   (let [db (.-result (.-target event))]
     (cond (= version 1)
@@ -65,6 +44,6 @@
        (set! (.-onerror req) #(cb {:db-error (.-errorCode (.-target %))}))
        (set! (.-onsuccess req) (fn [e]
                                  ; HACK force some dummy data
-                                 (put-data (.-result req) dummy-data)
+                                 #_(put-data (.-result req) dummy-data)
                                  (cb {:db-opened (.-result req)})))
        (set! (.-onupgradeneeded req) (partial up-fn version)))))

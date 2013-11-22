@@ -4,8 +4,9 @@
             [clojure.zip :as zip]))
 
 
-(defn changes-to-base [base a b]
+(defn changes-to-base
   "Calculate a map with additions and removals to a and b compared to base."
+  [base a b]
   (let [base-a (diff base a)
         base-b (diff base b)]
     {:removals-a (first base-a)
@@ -13,7 +14,9 @@
      :removals-b (first base-b)
      :additions-b (second base-b)}))
 
-(defn atom? [x]
+(defn atom?
+  "Determines whether atomic places conflict."
+  [x]
   (not (or (seq? x) (vector? x) (map? x) (set? x) (nil? x))))
 
 (defn- gensym-nils [diff]
