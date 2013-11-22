@@ -1,15 +1,21 @@
 # ped-geschichte
 
+Playground for [geschichte](http://github.com/ghubber/geschichte) repo functions with pedestal. To learn how the pure repo functionality works, look at the docs there.
+Use ui-data-renderer for now. Has an easy to debug memory store for the underlying key-value store concept, look on the js-console to see the data-flow and in memory store change.
 
-Playground for `geschichte` repo functions with pedestal. Use ui-data-renderer for now.
-Has an easy to debug memory store for the underlying key-value store concept.
+# Example
 
-Example:
-- set repo to "u1/r" to checkout a demo repository
-- commit, fork, set-repo (checkout) at wish
+To watch how different values flow:
 
-Start working on this application by writing its behavior in the file
-`app/src/ped_geschichte/behavior.clj`
+- `:set-user` to "user@mail.com" to allow repository functionality
+- `:create` a repository with an initial value and description
+- `:set-user` to "other@mail.com"
+- copy the uuid string only, e.g. 66c4de57-d4cc-4a5e-bc0f-4cdcc1ca75ee from `:repo`
+- and `:clone` it with branch "master"
+- `:set-value` to something new and `:commit`
+- `:set-user` to "user@mail.com" again
+- and `:pull` or `:merge` from "other@mail.com" "master"
+- ...
 
 
 ## Usage
